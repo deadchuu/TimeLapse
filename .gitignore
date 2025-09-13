@@ -1,8 +1,19 @@
 # Ignore Python bytecode files and the timelaps directory
+__pycache__/
 *.pyc
-timelaps/
+*.pyo
 
-# Ignore text, log, and CSV files
+# Data and results
+data/
+timelaps/
+*.mp4
+*.mkv
+*.avi
+*.png
+*.jpg
+
+# Logs and CSVs
+logs/
 *.txt
 *.log
 *.csv
