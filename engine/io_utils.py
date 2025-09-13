@@ -1,11 +1,11 @@
-# io_utils.py
+# engine/io_utils.py
 import os
 import shutil
 import tempfile
 import threading
 import atexit
 import signal
-from utils import get_logger, vprint
+from engine.utils import get_logger, vprint
 
 _logger = get_logger()
 
@@ -37,11 +37,12 @@ def cleanup_all_temp_paths():
         finally:
             unregister_temp_path(p)
 
-# register cleanup at exit and signals
 atexit.register(cleanup_all_temp_paths)
+
 def _signal_handler(sig, frame):
-    _logger.info("Signal %s received -> cleaning up temporaries.", sig)
+    _logger.info("Signal %s received -> cleaning temporaries.", sig)
     cleanup_all_temp_paths()
+
 for s in (signal.SIGINT, signal.SIGTERM):
     try:
         signal.signal(s, _signal_handler)
@@ -57,7 +58,6 @@ def basename(path):
 def list_png_files(folder):
     return sorted([os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(".png")])
 
-# Try link/copy helpers
 def create_link_or_copy(src, dest):
     try:
         os.link(src, dest)

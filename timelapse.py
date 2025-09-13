@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # try to import project modules (these should exist in same folder)
 try:
-    from utils import setup_logging, get_tqdm, get_logger
+    from engine.utils import setup_logging, get_tqdm, get_logger
     from io_utils import ensure_dir, basename, list_png_files, make_unique_tempdir, create_links_for_batch, register_temp_path, unregister_temp_path
     from compare import batch_compare_pairs, detect_best_backend
     from encoder import submit_segment_stream_or_fallback, concat_segments_ffmpeg

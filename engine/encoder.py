@@ -1,10 +1,10 @@
-# encoder.py
+# engine/encoder.py
 import os
 import subprocess
 import threading
 import shutil
-from .utils import get_logger, vprint
-from .io_utils import register_temp_path, unregister_temp_path, make_unique_tempdir
+from engine.utils import get_logger
+from engine.io_utils import register_temp_path, unregister_temp_path, make_unique_tempdir
 logger = get_logger()
 
 FFMPEG_CRF = 18
@@ -44,7 +44,6 @@ def make_segment_from_images_ffmpeg_stream(image_paths, fps, out_segment_path, e
         logger.debug("No image paths to stream.")
         return False
     first = image_paths[0]
-    # get image size via PIL
     from PIL import Image
     try:
         with Image.open(first) as im:
@@ -60,21 +59,11 @@ def make_segment_from_images_ffmpeg_stream(image_paths, fps, out_segment_path, e
         "-framerate", str(int(fps)),
         "-f", "image2pipe", "-vcodec", "png", "-i", "-",
     ]
-    if encoder == "libx264":
-        cmd = base + [
-            "-filter_complex", "[0:v][1:v]overlay=shortest=1:format=auto",
-            "-c:v", "libx264", "-preset", FFMPEG_PRESET, "-crf", str(FFMPEG_CRF),
-            "-pix_fmt", "yuv420p", out_segment_path
-        ]
-    else:
-        # for non-libx264 we fallback to libx264 for safety in this module,
-        # leaving hardware specific tuning to caller if desired
-        cmd = base + [
-            "-filter_complex", "[0:v][1:v]overlay=shortest=1:format=auto",
-            "-c:v", "libx264", "-preset", FFMPEG_PRESET, "-crf", str(FFMPEG_CRF),
-            "-pix_fmt", "yuv420p", out_segment_path
-        ]
-
+    cmd = base + [
+        "-filter_complex", "[0:v][1:v]overlay=shortest=1:format=auto",
+        "-c:v", "libx264", "-preset", FFMPEG_PRESET, "-crf", str(FFMPEG_CRF),
+        "-pix_fmt", "yuv420p", out_segment_path
+    ]
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     except Exception as e:
@@ -110,8 +99,6 @@ def make_segment_from_images_ffmpeg_stream(image_paths, fps, out_segment_path, e
         return False
 
 def make_segment_from_images_ffmpeg(temp_img_folder, fps, out_segment_path, encoder_hint=None):
-    # pattern-based method
-    # find first image
     first_img = os.path.join(temp_img_folder, "000000.png")
     if not os.path.exists(first_img):
         files = sorted([os.path.join(temp_img_folder,f) for f in os.listdir(temp_img_folder) if f.lower().endswith(".png")])
@@ -126,7 +113,6 @@ def make_segment_from_images_ffmpeg(temp_img_folder, fps, out_segment_path, enco
     except Exception as e:
         logger.debug("Cannot determine image size: %s", e)
         return False
-    encoder = encoder_hint or "libx264"
     base = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-f", "lavfi", "-i", f"color=white:s={w}x{h}:r={int(fps)}",
@@ -156,17 +142,16 @@ def submit_segment_stream_or_fallback(image_list, temp_folder_pattern, seg_path,
         return False
     tmp = make_unique_tempdir(prefix="fallback_")
     try:
-        # link images
         for i, src in enumerate(image_list):
             dest = os.path.join(tmp, f"{i:06d}.png")
             try:
                 os.link(src, dest)
             except Exception:
                 try:
-                    shutil.copy2(src,dest)
+                    shutil.copy2(src, dest)
                 except Exception:
                     logger.debug("copy failed for %s", src)
-        ok2 = make_segment_from_images_ffmpeg(tmp, fps_param, seg_path, encoder_hint=encoder)
+        ok2 = make_segment_from_images_ffmpeg(tmp, fps_param, seg_path)
     finally:
         try:
             if os.path.isdir(tmp):
@@ -202,7 +187,7 @@ def concat_segments_ffmpeg(segment_paths, out_final):
             for p in segment_paths:
                 inputs += ["-i", p]
             n = len(segment_paths)
-            cmd2 = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"] + inputs + ["-filter_complex", f"concat=n={n}:v=1:a=0", "-c:v", "libx264", "-preset", FFMPEG_PRESET, "-crf", str(FFMPEG_CRF), out_final]
+            cmd2 = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"] + inputs + ["-filter_complex", f"concat=n={n}:v=1:a=0", "-c:v", "libx264", "-preset", "medium", "-crf", str(FFMPEG_CRF), out_final]
             subprocess.run(cmd2, check=True)
             try:
                 os.remove(list_file.name)
