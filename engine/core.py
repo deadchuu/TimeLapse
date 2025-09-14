@@ -13,47 +13,10 @@ from engine.utils import setup_logging, get_tqdm, get_logger
 from engine.io_utils import ensure_dir, basename, list_png_files, make_unique_tempdir, create_links_for_batch, register_temp_path, unregister_temp_path
 from engine.compare import batch_compare_pairs, detect_best_backend
 from engine.encoder import submit_segment_stream_or_fallback, concat_segments_ffmpeg
-from multiprocessing import Manager
-from engine.progress import ProgressBar
 from engine.scheduler import DispatcherThrottle
 import engine.config as config
 
 logger = get_logger()
-
-def worker_task(frame_batch, counter):
-    for frame in frame_batch:
-        # тут твоя логіка обробки кадру
-        time.sleep(0.01)  # симуляція обробки
-        with counter.get_lock():
-            counter.value += 1
-
-def run_pipeline(frames, num_workers=4):
-    total_frames = len(frames)
-    manager = Manager()
-    counter = manager.Value('i', 0)
-
-    progress = ProgressBar(total_frames)
-    progress.start()
-
-    # Розбиття кадрів на батчі
-    batches = [frames[i::num_workers] for i in range(num_workers)]
-
-    from multiprocessing import Process
-    procs = []
-    for batch in batches:
-        p = Process(target=worker_task, args=(batch, counter))
-        p.start()
-        procs.append(p)
-
-    # Poll лічильника
-    while any(p.is_alive() for p in procs):
-        progress.update(counter.value)
-        time.sleep(0.2)
-
-    for p in procs:
-        p.join()
-    progress.update(counter.value)
-    progress.stop()
 
 def run_interactive():
     # configure logging file
